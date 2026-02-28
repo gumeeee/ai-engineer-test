@@ -91,7 +91,7 @@ def test_ingest_documents_calls_add(mock_embeddings, mock_chroma):
     mock_vs_instance.add_documents.assert_called_once_with(docs)
 
 
-@patch("src.rag.vectorstore.get_vectorstore")
+@patch("src.rag.retriever.get_vectorstore")
 def test_get_retriever_configured(mock_get_vs):
     """get_retriever deve chamar as_retriever com os parâmetros corretos."""
     from src.config.settings import settings
