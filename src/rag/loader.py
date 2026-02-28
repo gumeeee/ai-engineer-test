@@ -1,0 +1,68 @@
+from pathlib import Path
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from src.config.settings import settings
+from src.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+def load_pdf(file_path: str | Path) -> list[Document]:
+    """
+    Load a PDF file and return one Document per page.
+
+    Args:
+        file_path: Path to the PDF file.
+
+    Returns:
+        List of Documents, one per page.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"PDF not found: {path}")
+
+    logger.info("loader.loading_pdf", path=str(path))
+    loader = PyPDFLoader(str(path))
+    documents = loader.load()
+    logger.info("loader.pdf_loaded", pages=len(documents))
+    return documents
+
+
+def split_documents(documents: list[Document]) -> list[Document]:
+    """Split documents into chunks preserving page metadata.
+
+    Args:
+        documents: List of Documents to split.
+
+    Returns:
+        List of chunked Documents with metadata.
+    """
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=settings.rag_chunk_size,
+        chunk_overlap=settings.rag_chunk_overlap,
+        length_function=len,
+        separators=["\n\n", "\n", ".", " ", ""],
+    )
+
+    chunks = splitter.split_documents(documents)
+    logger.info("loader.split_complete", total_chunks=len(chunks))
+    return chunks
+
+
+def load_and_split(file_path: str | Path) -> list[Document]:
+    """Load a PDF and return split chunks ready for embedding.
+
+    Args:
+        file_path: Path to the PDF file.
+
+    Returns:
+        List of chunked Documents.
+    """
+    documents = load_pdf(file_path)
+    return split_documents(documents)
