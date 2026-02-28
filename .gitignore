@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Ruff
+.ruff_cache/
+
+# ChromaDB
+data/
+chroma_data/
+
+# IDEs
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
