@@ -47,5 +47,5 @@ def test_checkpointer_returns_memory_saver_in_testing(monkeypatch):
 
     importlib.reload(cp_module)
 
-    checkpointer = cp_module.get_checkpointer()
-    assert isinstance(checkpointer, MemorySaver)
+    with cp_module.checkpointer_context() as checkpointer:
+        assert isinstance(checkpointer, MemorySaver)

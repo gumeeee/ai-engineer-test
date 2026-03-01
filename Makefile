@@ -1,4 +1,4 @@
-.PHONY: dev lint format test ingest docker-up docker-down
+.PHONY: dev lint format test ingest docker-up docker-down docker-ingest
 
 dev:
 	PYTHONPATH=. uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
@@ -20,3 +20,6 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+docker-ingest:
+	docker compose exec app python scripts/ingest.py
