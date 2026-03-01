@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      APP_ENV: production
+    env_file:
+      - .env
+    volumes:
+      - ./data/chroma:/app/data/chroma
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis_data:
