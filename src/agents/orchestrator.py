@@ -11,7 +11,6 @@ from src.agents.prompts import ORCHESTRATOR_PROMPT
 from src.agents.search_agent import search_agent_node
 from src.agents.state import AgentState
 from src.config.settings import settings
-from src.core.checkpointer import get_checkpointer
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -150,8 +149,10 @@ def build_graph(checkpointer=None):
     Returns:
         Compiled LangGraph graph ready for invocation.
     """
+    from langgraph.checkpoint.memory import MemorySaver
+
     if checkpointer is None:
-        checkpointer = get_checkpointer()
+        checkpointer = MemorySaver()
 
     graph = StateGraph(AgentState)
 
