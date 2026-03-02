@@ -6,8 +6,10 @@ compatíveis com o Model Context Protocol (MCP).
 
 import uuid
 
+from langgraph.checkpoint.memory import MemorySaver
 from mcp.server.fastmcp import FastMCP
 
+from src.agents.orchestrator import build_graph
 from src.config.settings import settings
 from src.core.logging import get_logger, setup_logging
 
@@ -24,10 +26,6 @@ mcp = FastMCP(
         "de políticas sem passar pelo pipeline completo de agentes."
     ),
 )
-
-from langgraph.checkpoint.memory import MemorySaver
-
-from src.agents.orchestrator import build_graph
 
 _graph = build_graph(checkpointer=MemorySaver())
 logger.info("mcp_server.graph_initialized")
