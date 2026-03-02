@@ -14,6 +14,7 @@ dependencies = [
     "langchain-tavily>=0.2.17",
     "langgraph>=1.0.10",
     "langgraph-checkpoint-redis>=0.3.6",
+    "mcp>=1.26.0",
     "openai>=2.24.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
@@ -38,7 +39,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-ignore = ["E501"]
+ignore = ["E501", "B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
