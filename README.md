@@ -179,3 +179,62 @@ CI/CD com GitHub Actions
 
 - Push em qualquer branch → roda lint (Ruff) + testes (pytest)
 - Push na main → lint + testes + deploy automático via SSH na EC2
+
+### Exemplos reais de como a IA me ajudou
+
+**Geração de código:**
+
+O Projeto foi guiado pelo Claude Code seguindo as fases definidas no `CLAUDE.md`. Com isso foi possível desenvolver em Conjunto com Claude Code como meu pair programming, garantindo consistência arquitetural e aderência às melhores práticas, com isso não ficando perdido no meu desenvolvimento. Exemplos:
+- Pipeline RAG completo: `loader.py` → `vectorstore.py` → `retriever.py` → `scripts/ingest.py`
+- Grafo LangGraph com roteamento condicional (`orchestrator.py`) — incluindo a lógica de fallback para JSON inválido do LLM
+- Workflows GitHub Actions para lint + testes + deploy automático via SSH na AWS EC2
+- MCP server expondo os agentes como ferramentas nativas
+
+**Debug com análise de logs:**
+
+- **`RedisSaver` retornando `_GeneratorContextManager`**: O traceback apontava `TypeError: Invalid checkpointer provided`. O
+Claude identificou que `RedisSaver.from_conn_string()` retorna um context manager, não uma instância. Solução: refatorar
+`checkpointer.py` para `@contextmanager` e atualizar o lifespan do FastAPI para usar `with checkpointer_context() as
+checkpointer`.
+
+- **ChromaDB `Nothing found on disk`**: Erro no Docker após ingest bem-sucedido. Análise dos logs identificou que volumes nomeados
+ Docker impedem o backend Rust (HNSW) de encontrar os arquivos de índice em disco. Solução: trocar para bind mount
+(`./data/chroma:/app/data/chroma`).
+
+- **`TavilySearchResults` deprecado**: O wrapper LangChain falhou com parâmetros inconsistentes entre versões. Claude sugeriu
+migrar para `TavilyClient` do pacote `tavily-python` diretamente, com interface estável e retorno previsível (`list[dict]`).
+
+- **Patch incorreto nos testes RAG**: `test_get_retriever_configured` falhava porque o patch estava em
+`src.rag.vectorstore.get_vectorstore` ao invés de `src.rag.retriever.get_vectorstore`. Claude identificou a regra: *"patch where
+the function is used, not where it's defined"*.
+
+**Decisões arquiteturais discutidas:**
+
+- Escolha entre Railway vs AWS EC2 para deploy (trade-offs de complexidade vs controle)
+- `TavilyClient` direto vs wrappers LangChain
+- Bind mount vs volume nomeado para ChromaDB
+- Singleton `MemorySaver` vs `RedisSaver` por ambiente
+
+---
+
+### O que funcionou bem
+
+- Geração de código consistente com a arquitetura definida em todas as 11 fases do projeto
+- Identificação rápida de causas raiz em erros de runtime a partir de tracebacks completos
+- Manutenção de convenções (Conventional Commits, LAYER.md, tipagem forte, Pydantic v2) ao longo de todo o desenvolvimento
+- Sugestão de padrões corretos que não eram óbvios: context manager para Redis, bind mount para ChromaDB, `asyncio` mock para SSE
+nos testes
+
+### O que precisei corrigir manualmente
+
+- **Rota SSE com 404**: O endpoint `POST /chat/stream` estava sem o decorator `@router.post` — foi perdido durante uma edição
+intermediária. Identifiquei inspecionando o arquivo diretamente e corrigi.
+- **Typo em log**: `logger.pdf_loaded` ao invés de `loader.pdf_loaded` em `loader.py` — erro de digitação no nome do evento
+estruturado, corrigido manualmente.
+- **Ruff B008**: Falso positivo flagando `Depends()` do FastAPI. Necessitou adicionar `"B008"` ao `ignore` do `pyproject.toml`.
+- **Ruff E402**: Imports do `mcp_server.py` posicionados após código de inicialização. Necessitou reordenar todos os imports para
+o topo do arquivo.
+- **Security Group SSH**: A regra de entrada na EC2 estava restrita ao IP pessoal, bloqueando o runner do GitHub Actions.
+Necessitou abrir a porta 22 para `0.0.0.0/0` no console da AWS.
+
+---
