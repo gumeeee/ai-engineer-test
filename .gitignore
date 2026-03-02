@@ -26,3 +26,5 @@ chroma_data/
 
 # macOS
 .DS_Store
+
+*.pem
