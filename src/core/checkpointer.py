@@ -1,5 +1,5 @@
-from collections.abc import Generator
-from contextlib import contextmanager
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -9,24 +9,24 @@ from src.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-@contextmanager
-def checkpointer_context() -> Generator:
+@asynccontextmanager
+async def checkpointer_context() -> AsyncGenerator:
     """
-    Context manager that yields a ready-to-use LangGraph checkpointer.
+    Async context manager that yields a ready-to-use LangGraph checkpointer.
 
-    Uses RedisSaver in development/production, falls back to MemorySaver
+    Uses AsyncRedisSaver in production, falls back to MemorySaver
     when Redis is unavailable or in testing mode.
     """
     if settings.app_env == "testing" or not settings.redis_url:
         logger.info("checkpointer.using_memory_saver")
-        yield MemorySaver()
+        yield MemorySaver()  # type: ignore
         return
 
     try:
-        from langgraph.checkpoint.redis import RedisSaver
+        from langgraph.checkpoint.redis import AsyncRedisSaver
 
-        with RedisSaver.from_conn_string(settings.redis_url) as checkpointer:
-            checkpointer.setup()
+        async with AsyncRedisSaver.from_conn_string(settings.redis_url) as checkpointer:
+            await checkpointer.setup()
             logger.info("checkpointer.using_redis", url=settings.redis_url)
             yield checkpointer
     except Exception as e:

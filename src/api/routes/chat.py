@@ -2,6 +2,7 @@ import json
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import HumanMessage
 
 from src.agents.state import AgentState
 from src.api.dependencies import get_graph
@@ -11,12 +12,16 @@ from src.core.logging import get_logger
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = get_logger(__name__)
 
+_ANSWER_NODES = {"faq_agent", "search_agent", "finalize"}
+
 
 def _build_initial_state(request: ChatRequest) -> AgentState:
     return AgentState(
+        messages=[HumanMessage(content=request.message)],
         session_id=request.session_id,
         question=request.message,
         route=None,
+        search_response=None,
         faq_response=None,
         final_response=None,
         agent_used=None,
@@ -54,9 +59,10 @@ async def chat_stream(
     graph=Depends(get_graph),
 ) -> StreamingResponse:
     """
-    Stream the agent response using Server-Sent Events (SSE).
+    Stream the agent response token-by-token using Server-Sent Events (SSE).
 
-    Emits one event per graph node completion, and a final event with the response.
+    Emits one 'token' event per LLM token as it is generated, followed by a
+    final 'done' event containing session_id, agent_used and sources.
     """
     logger.info("chat.stream_request", session_id=request.session_id)
 
@@ -64,33 +70,40 @@ async def chat_stream(
         config = {"configurable": {"thread_id": f"{request.session_id}-stream"}}
         state = _build_initial_state(request)
         accumulated_sources: list[str] = []
+        agent_used = "unknown"
 
         try:
-            async for chunk in graph.astream(
-                state, config=config, stream_mode="updates"
-            ):
-                node_name = next(iter(chunk))
-                update = chunk[node_name]
+            async for event in graph.astream_events(state, config=config, version="v2"):
+                event_type = event["event"]
+                node_name = event.get("metadata", {}).get("langgraph_node", "")
 
-                if "sources" in update:
-                    accumulated_sources = update["sources"]
+                if event_type == "on_chat_model_stream" and node_name in _ANSWER_NODES:
+                    chunk = event["data"].get("chunk")
+                    if chunk is not None:
+                        content = chunk.content
+                        if isinstance(content, str) and content:
+                            yield f"data: {json.dumps({'token': content, 'done': False})}\n\n"
+                        elif isinstance(content, list):  # type: ignore
+                            for part in content:
+                                if isinstance(part, dict) and part.get("text"):
+                                    yield f"data: {json.dumps({'token': part['text'], 'done': False})}\n\n"
+                elif event_type == "on_chain_end" and node_name in (
+                    "faq_agent",
+                    "search_agent",
+                ):
+                    raw = event["data"].get("output")
+                    output = raw if isinstance(raw, dict) else {}
+                    for src in output.get("sources", []):
+                        if src not in accumulated_sources:
+                            accumulated_sources.append(src)
 
-                if node_name == "finalize":
-                    data = json.dumps(
-                        {
-                            "session_id": request.session_id,
-                            "response": update.get("final_response", ""),
-                            "agent_used": update.get("agent_used", ""),
-                            "sources": accumulated_sources,
-                            "done": True,
-                        }
-                    )
-                    yield f"data: {data}\n\n"
-                else:
-                    yield f"data: {json.dumps({'node': node_name, 'done': False})}\n\n"
+                elif event_type == "on_chain_end" and node_name == "finalize":
+                    raw = event["data"].get("output")
+                    output = raw if isinstance(raw, dict) else {}
+                    agent_used = output.get("agent_used", agent_used)
 
+            yield f"data: {json.dumps({'session_id': request.session_id, 'agent_used': agent_used, 'sources': accumulated_sources, 'done': True})}\n\n"
             yield "data: [DONE]\n\n"
-
         except Exception as e:
             logger.error("chat.stream_error", error=str(e))
             yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"

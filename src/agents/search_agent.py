@@ -54,7 +54,10 @@ def search_agent_node(state: AgentState) -> dict:
         State update with search_response and sources.
     """
     question = state["question"]
-    logger.info("search_agent.start", question=question)
+    conversation_history = state.get("messages", [])
+    logger.info(
+        "search_agent.start", question=question, history_len=len(conversation_history)
+    )
 
     results = run_web_search(question)
     logger.info("search_agent.results_retrieved", count=len(results))
@@ -68,12 +71,14 @@ def search_agent_node(state: AgentState) -> dict:
         temperature=0,
     )
 
-    messages = [
-        SystemMessage(content=SEARCH_AGENT_PROMPT),
-        HumanMessage(
-            content=f"Pergunta: {question}\n\nResultados da busca:\n{context}"
-        ),
-    ]
+    messages = [SystemMessage(content=SEARCH_AGENT_PROMPT)]
+
+    if len(conversation_history) > 1:
+        messages.extend(conversation_history[:-1])  # type: ignore
+
+    messages.append(
+        HumanMessage(content=f"Pergunta: {question}\n\nResultados da busca:\n{context}")  # type: ignore
+    )
 
     response = llm.invoke(messages)
     logger.info("search_agent.complete")

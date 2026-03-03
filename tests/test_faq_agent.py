@@ -9,6 +9,7 @@ def _make_state(**kwargs) -> AgentState:
     """Helper to build a minimal AgentState for tests."""
     defaults: AgentState = {
         "session_id": "test-session",
+        "messages": [],
         "question": "Qual o limite de bagagem de mão na LATAM?",
         "route": "faq",
         "faq_response": None,
@@ -27,6 +28,7 @@ def test_agent_state_has_required_keys():
     state = _make_state()
     required_keys = {
         "session_id",
+        "messages",
         "question",
         "route",
         "faq_response",

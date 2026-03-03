@@ -2,7 +2,7 @@ import json
 import re
 from typing import Literal
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 
@@ -26,7 +26,19 @@ def orchestrator_node(state: AgentState) -> dict:
         State update with route decision (faq | search | both).
     """
     question = state["question"]
+    messages = state.get("messages", [])
     logger.info("orchestrator.start", question=question)
+
+    history_text = ""
+    history_msgs = [m for m in messages[:-1] if hasattr(m, "type")]
+    if history_msgs:
+        lines = []
+        for msg in history_msgs[-6:]:
+            role = "Usuário" if msg.type == "human" else "Assistente"
+            lines.append(f"{role}: {str(msg.content)[:300]}")
+        history_text = "Histórico da conversa:\n" + "\n".join(lines) + "\n\nf"
+
+    prompt_content = f"{history_text}Pergunta atual: {question}"
 
     llm = ChatOpenAI(
         model=settings.openai_model,
@@ -35,7 +47,7 @@ def orchestrator_node(state: AgentState) -> dict:
     )
     messages = [
         SystemMessage(content=ORCHESTRATOR_PROMPT),
-        HumanMessage(content=question),
+        HumanMessage(content=prompt_content),
     ]
 
     response = llm.invoke(messages)
@@ -51,7 +63,7 @@ def orchestrator_node(state: AgentState) -> dict:
         logger.warning("orchestrator.json_parse_failed", content=content)
         route = "faq"
 
-    if route not in ("faq", "search", "both"):
+    if route not in ("faq", "search", "both", "out_of_scope"):
         logger.warning("orchestrator.invalid_route_fallback", route=route)
         route = "faq"
 
@@ -73,21 +85,37 @@ def finalize_node(state: AgentState) -> dict:
     """
     route = state.get("route", "faq")
 
+    if route == "out_of_scope":
+        final_response = (
+            "Sou especialista em viagens e posso ajudar com dúvidas sobre "
+            "bagagem, documentação, check-in, remarcações, reembolsos e "
+            "informações sobre companhias aéreas. Como posso ajudá-lo com sua viagem?"
+        )
+        logger.info("finalize.out_of_scope")
+        return {
+            "final_response": final_response,
+            "agent_used": "none",
+            "messages": [AIMessage(content=final_response)],
+        }
+
     if route == "faq":
         logger.info("finalize.single_agent", agent="faq")
+        final_response = state.get("faq_response", "")
         return {
-            "final_response": state.get("faq_response", ""),
+            "final_response": final_response,
             "agent_used": "faq",
+            "messages": [AIMessage(content=final_response) or ""],
         }
 
     if route == "search":
         logger.info("finalize.single_agent", agent="search")
+        final_response = state.get("search_response", "")
         return {
-            "final_response": state.get("search_response", ""),
+            "final_response": final_response,
             "agent_used": "search",
+            "messages": [AIMessage(content=final_response) or ""],
         }
 
-    # route == "both" — consolidate both responses with LLM
     logger.info("finalize.consolidating")
     faq = state.get("faq_response") or ""
     search = state.get("search_response") or ""
@@ -110,19 +138,24 @@ def finalize_node(state: AgentState) -> dict:
     )
 
     response = llm.invoke([HumanMessage(content=consolidation_prompt)])
+    final_response = str(response.content)
     logger.info("finalize.consolidation_complete")
 
     return {
-        "final_response": response.content,
+        "final_response": final_response,
         "agent_used": "both",
+        "messages": [AIMessage(content=final_response)],
     }
 
 
 def _route_after_orchestrator(
     state: AgentState,
-) -> Literal["faq_agent", "search_agent"]:
+) -> Literal["faq_agent", "search_agent", "finalize"]:
     """Conditional edge: route to first agent after orchestrator decision."""
-    if state.get("route") == "search":
+    route = state.get("route")
+    if route == "out_of_scope":
+        return "finalize"
+    if route == "search":
         return "search_agent"
     return "faq_agent"
 
@@ -166,7 +199,11 @@ def build_graph(checkpointer=None):
     graph.add_conditional_edges(
         "orchestrator",
         _route_after_orchestrator,
-        {"faq_agent": "faq_agent", "search_agent": "search_agent"},
+        {
+            "faq_agent": "faq_agent",
+            "search_agent": "search_agent",
+            "finalize": "finalize",
+        },
     )
 
     graph.add_conditional_edges(

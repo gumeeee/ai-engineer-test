@@ -40,7 +40,10 @@ def faq_agent_node(state: AgentState) -> dict:
         State update with faq_response and sources.
     """
     question = state["question"]
-    logger.info("faq_agent.start", question=question)
+    conversation_history = state.get("messages", [])
+    logger.info(
+        "faq_agent.start", question=question, history_len=len(conversation_history)
+    )
 
     retriever = get_retriever()
     docs = retriever.invoke(question)
@@ -57,8 +60,11 @@ def faq_agent_node(state: AgentState) -> dict:
 
     messages = [
         SystemMessage(content=FAQ_AGENT_PROMPT.format(context=context)),
-        HumanMessage(content=question),
+        *conversation_history,
     ]
+
+    if not conversation_history:
+        messages.append(HumanMessage(content=question))
 
     response = llm.invoke(messages)
     logger.info("faq_agent.complete")
