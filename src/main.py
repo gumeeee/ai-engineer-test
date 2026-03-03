@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     setup_logging(settings.log_level)
     logger.info("app.starting", env=settings.app_env, version=settings.app_version)
 
-    with checkpointer_context() as checkpointer:
+    async with checkpointer_context() as checkpointer:
         app.state.graph = build_graph(checkpointer=checkpointer)
         logger.info("app.graph_ready")
         yield

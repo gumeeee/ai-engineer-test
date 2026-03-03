@@ -25,6 +25,7 @@ def make_state():
     def _factory(**kwargs) -> AgentState:
         defaults: AgentState = {
             "session_id": "test-session",
+            "messages": [],
             "question": "Qual o limite de bagagem de mão na LATAM?",
             "route": None,
             "faq_response": None,

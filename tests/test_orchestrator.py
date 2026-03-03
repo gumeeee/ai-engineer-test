@@ -6,6 +6,7 @@ from src.agents.state import AgentState
 def _make_state(**kwargs) -> AgentState:
     defaults: AgentState = {
         "session_id": "test-session",
+        "messages": [],
         "question": "Qual o limite de bagagem na LATAM?",
         "route": None,
         "faq_response": None,

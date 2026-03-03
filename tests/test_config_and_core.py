@@ -32,7 +32,7 @@ def test_setup_loggin_does_not_raise():
     setup_logging("DEBUG")
 
 
-def test_checkpointer_returns_memory_saver_in_testing(monkeypatch):
+async def test_checkpointer_returns_memory_saver_in_testing(monkeypatch):
     """Em APP_ENV=testing deve retornar MemorySaver."""
     from langgraph.checkpoint.memory import MemorySaver
 
@@ -47,5 +47,5 @@ def test_checkpointer_returns_memory_saver_in_testing(monkeypatch):
 
     importlib.reload(cp_module)
 
-    with cp_module.checkpointer_context() as checkpointer:
+    async with cp_module.checkpointer_context() as checkpointer:
         assert isinstance(checkpointer, MemorySaver)
