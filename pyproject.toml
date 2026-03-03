@@ -21,6 +21,7 @@ dependencies = [
     "pypdf>=6.7.4",
     "redis>=7.1.1",
     "structlog>=25.5.0",
+    "slowapi>=0.1.9",
     "tavily-python>=0.7.22",
     "uvicorn>=0.41.0",
 ]

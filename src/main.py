@@ -3,8 +3,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from src.agents.orchestrator import build_graph
+from src.api.dependencies import limiter
 from src.api.routes import chat, health
 from src.config.settings import settings
 from src.core.checkpointer import checkpointer_context
@@ -33,6 +36,9 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
 app.add_middleware(
     CORSMiddleware,

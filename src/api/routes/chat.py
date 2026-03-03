@@ -1,11 +1,11 @@
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 
 from src.agents.state import AgentState
-from src.api.dependencies import get_graph
+from src.api.dependencies import get_graph, limiter
 from src.api.schemas.chat import ChatRequest, ChatResponse
 from src.core.logging import get_logger
 
@@ -15,11 +15,11 @@ logger = get_logger(__name__)
 _ANSWER_NODES = {"faq_agent", "search_agent", "finalize"}
 
 
-def _build_initial_state(request: ChatRequest) -> AgentState:
+def _build_initial_state(body: ChatRequest) -> AgentState:
     return AgentState(
-        messages=[HumanMessage(content=request.message)],
-        session_id=request.session_id,
-        question=request.message,
+        messages=[HumanMessage(content=body.message)],
+        session_id=body.session_id,
+        question=body.message,
         route=None,
         search_response=None,
         faq_response=None,
@@ -30,23 +30,27 @@ def _build_initial_state(request: ChatRequest) -> AgentState:
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
+@limiter.limit("10/minute")
+async def chat(
+    request: Request, body: ChatRequest, graph=Depends(get_graph)
+) -> ChatResponse:
     """
     Process a chat message and return the agent's response.
 
     Routes the question through the Orchestrator, FAQ Agent, and/or Search Agent.
+    Rate limited to 10 requests per minute per IP.
     """
-    logger.info("chat.request", session_id=request.session_id)
-    config = {"configurable": {"thread_id": request.session_id}}
-    state = _build_initial_state(request)
+    logger.info("chat.request", session_id=body.session_id)
+    config = {"configurable": {"thread_id": body.session_id}}
+    state = _build_initial_state(body)
 
     result = await graph.ainvoke(state, config=config)
     logger.info(
-        "chat.response", session_id=request.session_id, agent=result["agent_used"]
+        "chat.response", session_id=body.session_id, agent=result["agent_used"]
     )
 
     return ChatResponse(
-        session_id=request.session_id,
+        session_id=body.session_id,
         response=result["final_response"] or "",
         agent_used=result["agent_used"] or "",
         sources=result["sources"],
@@ -54,8 +58,10 @@ async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
 
 
 @router.post("/stream")
+@limiter.limit("10/minute")
 async def chat_stream(
-    request: ChatRequest,
+    request: Request,
+    body: ChatRequest,
     graph=Depends(get_graph),
 ) -> StreamingResponse:
     """
@@ -63,12 +69,13 @@ async def chat_stream(
 
     Emits one 'token' event per LLM token as it is generated, followed by a
     final 'done' event containing session_id, agent_used and sources.
+    Rate limited to 10 requests per minute per IP.
     """
-    logger.info("chat.stream_request", session_id=request.session_id)
+    logger.info("chat.stream_request", session_id=body.session_id)
 
     async def event_generator():
-        config = {"configurable": {"thread_id": f"{request.session_id}-stream"}}
-        state = _build_initial_state(request)
+        config = {"configurable": {"thread_id": f"{body.session_id}-stream"}}
+        state = _build_initial_state(body)
         accumulated_sources: list[str] = []
         agent_used = "unknown"
 
@@ -102,7 +109,7 @@ async def chat_stream(
                     output = raw if isinstance(raw, dict) else {}
                     agent_used = output.get("agent_used", agent_used)
 
-            yield f"data: {json.dumps({'session_id': request.session_id, 'agent_used': agent_used, 'sources': accumulated_sources, 'done': True})}\n\n"
+            yield f"data: {json.dumps({'session_id': body.session_id, 'agent_used': agent_used, 'sources': accumulated_sources, 'done': True})}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
             logger.error("chat.stream_error", error=str(e))
