@@ -173,12 +173,12 @@ def test_agent_state_messages_field_uses_add_messages_reducer():
     hints = typing.get_type_hints(AgentState, include_extras=True)
     messages_hint = hints["messages"]
 
-    assert hasattr(
-        messages_hint, "__metadata__"
-    ), "O campo messages deve ser Annotated — __metadata__ ausente"
-    assert (
-        add_messages in messages_hint.__metadata__
-    ), "O reducer add_messages deve estar declarado nos metadados do Annotated de messages"
+    assert hasattr(messages_hint, "__metadata__"), (
+        "O campo messages deve ser Annotated — __metadata__ ausente"
+    )
+    assert add_messages in messages_hint.__metadata__, (
+        "O reducer add_messages deve estar declarado nos metadados do Annotated de messages"
+    )
 
 
 @patch("src.agents.orchestrator.ChatOpenAI")

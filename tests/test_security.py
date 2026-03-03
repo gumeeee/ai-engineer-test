@@ -169,9 +169,9 @@ def test_orchestrator_routes_injection_and_off_topic_to_out_of_scope(
 
     result = orchestrator_node(_make_state(question=payload))
 
-    assert (
-        result["route"] == "out_of_scope"
-    ), f"Esperado out_of_scope para payload: {payload!r}, obtido {result['route']!r}"
+    assert result["route"] == "out_of_scope", (
+        f"Esperado out_of_scope para payload: {payload!r}, obtido {result['route']!r}"
+    )
 
 
 MALICIOUS_ROUTE_VALUES = [
@@ -208,9 +208,9 @@ def test_orchestrator_rejects_invalid_route_values(mock_chat_openai, malicious_r
 
     result = orchestrator_node(_make_state())
 
-    assert (
-        result["route"] in VALID_ROUTES
-    ), f"Rota maliciosa '{malicious_route}' não foi bloqueada; obtido {result['route']!r}"
+    assert result["route"] in VALID_ROUTES, (
+        f"Rota maliciosa '{malicious_route}' não foi bloqueada; obtido {result['route']!r}"
+    )
 
 
 @patch("src.agents.orchestrator.ChatOpenAI")
