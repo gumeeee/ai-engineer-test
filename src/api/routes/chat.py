@@ -29,6 +29,16 @@ def _build_initial_state(request: ChatRequest) -> AgentState:
     )  # type: ignore
 
 
+@router.post(
+    "",
+    response_model=ChatResponse,
+    summary="Enviar mensagem (resposta JSON)",
+    responses={
+        200: {"description": "Resposta gerada com sucesso pelos agentes."},
+        422: {"description": "Erro de validação — campos ausentes ou inválidos."},
+        500: {"description": "Erro interno do servidor."},
+    },
+)
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
     """
@@ -53,6 +63,25 @@ async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
     )
 
 
+@router.post(
+    "/stream",
+    summary="Enviar mensagem (streaming SSE)",
+    responses={
+        200: {
+            "description": (
+                "Stream de eventos no formato `text/event-stream`.\n\n"
+                "**Eventos emitidos:**\n\n"
+                '- Token parcial: `data: {"token": "...", "done": false}`\n'
+                '- Evento final: `data: {"session_id": "...", '
+                '"agent_used": "faq|search|both", "sources": [...],"done": true}`\n'
+                "- Encerramento: `data: [DONE]`"
+            ),
+            "content": {"text/event-stream": {"schema": {"type": "string"}}},
+        },
+        422: {"description": "Erro de validação."},
+        500: {"description": "Erro interno do servidor."},
+    },
+)
 @router.post("/stream")
 async def chat_stream(
     request: ChatRequest,
