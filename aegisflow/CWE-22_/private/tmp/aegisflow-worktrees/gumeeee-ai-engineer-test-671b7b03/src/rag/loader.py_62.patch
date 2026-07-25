@@ -1,0 +1,13 @@
+def load_and_split(file_path: str | Path) -> list[Document]:
+    """Load a PDF and return split chunks ready for embedding.
+
+    Args:
+        file_path: Path to the PDF file.
+
+    Returns:
+        List of chunked Documents.
+    """
+    if not isinstance(file_path, (str, Path)):
+        raise ValueError('file_path must be a string or Path object')
+    documents = load_pdf(file_path)
+    return split_documents(documents)

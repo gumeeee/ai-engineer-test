@@ -1,0 +1,1 @@
+def load_and_split(file_path: str) -> list[Document]:

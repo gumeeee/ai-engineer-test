@@ -1,0 +1,16 @@
+def load_pdf(file_path: str | Path) -> list[Document]:
+    """
+    Load a PDF file and return one Document per page.
+
+    Args:
+        file_path: Path to the PDF file.
+
+    Returns:
+        List of Documents, one per page.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
+    path = Path(file_path).resolve(strict=True)
+    if not path.exists():
+        raise FileNotFoundError(f"PDF not found: {path}")
