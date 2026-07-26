@@ -1,0 +1,4 @@
+def load_pdf(file_path: str | Path) -> list[Document]:
+    file_path = Path(file_path).resolve(strict=True)
+    if '..' in file_path.parts:
+        raise ValueError('Invalid file path')

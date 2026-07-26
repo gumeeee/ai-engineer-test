@@ -1,0 +1,2 @@
+@router.get("/health", response_model=HealthResponse, dependencies=[Depends(verify_token)])
+async def health() -> HealthResponse:
