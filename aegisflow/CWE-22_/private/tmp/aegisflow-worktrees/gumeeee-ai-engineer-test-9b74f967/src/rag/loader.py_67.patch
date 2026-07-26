@@ -1,0 +1,8 @@
+from pathlib import Path
+
+# ...
+
+file_path = Path(file_path).resolve(strict=True)
+if not file_path.is_file():
+    raise ValueError('Invalid file path')
+documents = load_pdf(file_path)

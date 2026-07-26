@@ -1,0 +1,8 @@
+from pathlib import Path
+
+
+def load_pdf(file_path: str | Path) -> list[Document]:
+    file_path = Path(file_path).resolve(strict=True)
+    if not file_path.is_file():
+        raise ValueError('Invalid file path')
+    # Additional checks for allow-list can be added here
