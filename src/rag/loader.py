@@ -11,27 +11,9 @@ logger = get_logger(__name__)
 
 
 def load_pdf(file_path: str | Path) -> list[Document]:
-    """
-    Load a PDF file and return one Document per page.
-
-    Args:
-        file_path: Path to the PDF file.
-
-    Returns:
-        List of Documents, one per page.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-    """
-    path = Path(file_path)
-    if not path.exists():
+    path = Path(file_path).resolve(strict=True)
+    if not path.exists() or '..' in path.parts:
         raise FileNotFoundError(f"PDF not found: {path}")
-
-    logger.info("loader.loading_pdf", path=str(path))
-    loader = PyPDFLoader(str(path))
-    documents = loader.load()
-    logger.info("loader.pdf_loaded", pages=len(documents))
-    return documents
 
 
 def split_documents(documents: list[Document]) -> list[Document]:
@@ -59,10 +41,73 @@ def load_and_split(file_path: str | Path) -> list[Document]:
     """Load a PDF and return split chunks ready for embedding.
 
     Args:
-        file_path: Path to the PDF file.
+        def load_and_split(file_path: str | Path) -> list[Document]:
+            """Load a PDF and return split chunks ready for embedding.
+
+            Args:
+                file_path: Path to the PDF file.
+
+            Returns:
+                List of chunked Documents.
+            """
+            resolved_path = Path(file_path).resolve(strict=True)
+            if '..' in str(resolved_path.parts):
+                raise ValueError('Invalid file path.')
+            documents = load_pdf(resolved_path)
+            return split_documents(documents)
 
     Returns:
         List of chunked Documents.
     """
-    documents = load_pdf(file_path)
+    resolved_path = Path(file_path).resolve(strict=True)
+    if '..' in resolved_path.parts:
+        raise ValueError('Invalid file path.')
+    documents = load_pdf(resolved_path)
+    return split_documents(documents)
+    """Load a PDF and return split chunks ready for embedding.
+
+    Args:
+        def load_pdf(file_path: str | Path) -> list[Document]:
+            """
+            Load a PDF file and return one Document per page.
+
+            Args:
+                file_path: Path to the PDF file.
+
+            Returns:
+                List of Documents, one per page.
+
+            Raises:
+                FileNotFoundError: If the file does not exist.
+            """
+            path = Path(file_path).resolve(strict=True)
+            if not path.exists() or '..' in path.parts:
+                raise FileNotFoundError(f"PDF not found: {path}")
+
+            logger.info("loader.loading_pdf", path=str(path))
+            loader = PyPDFLoader(str(path))
+            documents = loader.load()
+            logger.info("loader.pdf_loaded", pages=len(documents))
+            return documents
+
+    Returns:
+        List of chunked Documents.
+    """
+    from pathlib import Path
+
+
+    def load_and_split(file_path: str | Path) -> list[Document]:
+        """Load a PDF and return split chunks ready for embedding.
+
+        Args:
+            file_path: Path to the PDF file.
+
+        Returns:
+            List of chunked Documents.
+        """
+        resolved_path = Path(file_path).resolve(strict=True)
+        if not resolved_path.is_file():
+            raise ValueError('Invalid file path')
+        documents = load_pdf(resolved_path)
+        return split_documents(documents)
     return split_documents(documents)

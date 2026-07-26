@@ -29,7 +29,8 @@ def _build_initial_state(request: ChatRequest) -> AgentState:
     )  # type: ignore
 
 
-@router.post("", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse, dependencies=[Depends(verify_token)])
+async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
 async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
     """
     Process a chat message and return the agent's response.
@@ -54,6 +55,11 @@ async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
 
 
 @router.post("/stream")
+async def chat_stream(
+    request: ChatRequest,
+    graph=Depends(get_graph),
+    token: str = Depends(verify_token),
+) -> StreamingResponse:
 async def chat_stream(
     request: ChatRequest,
     graph=Depends(get_graph),
