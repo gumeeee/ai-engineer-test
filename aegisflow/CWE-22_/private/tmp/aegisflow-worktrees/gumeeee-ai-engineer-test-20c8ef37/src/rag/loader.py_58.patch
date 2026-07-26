@@ -1,0 +1,6 @@
+def load_and_split(file_path: str | Path) -> list[Document]:
+    file_path = Path(file_path).resolve(strict=True)
+    if '..' in file_path.parts:
+        raise ValueError('Invalid file path')
+    documents = load_pdf(file_path)
+    return split_documents(documents)
