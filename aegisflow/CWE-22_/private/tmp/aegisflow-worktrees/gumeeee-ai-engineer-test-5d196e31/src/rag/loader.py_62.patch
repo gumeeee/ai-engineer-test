@@ -1,0 +1,14 @@
+def load_and_split(file_path: str | Path) -> list[Document]:
+    """Load a PDF and return split chunks ready for embedding.
+
+    Args:
+        file_path: Path to the PDF file.
+
+    Returns:
+        List of chunked Documents.
+    """
+    resolved_path = Path(file_path).resolve(strict=True)
+    if '..' in resolved_path.parts:
+        raise ValueError('Invalid file path.')
+    documents = load_pdf(resolved_path)
+    return split_documents(documents)

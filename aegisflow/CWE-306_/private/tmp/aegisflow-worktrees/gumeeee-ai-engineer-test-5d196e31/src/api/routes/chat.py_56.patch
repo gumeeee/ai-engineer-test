@@ -1,0 +1,6 @@
+@router.post("/stream")
+async def chat_stream(
+    request: ChatRequest,
+    graph=Depends(get_graph),
+    token: str = Depends(verify_token),
+) -> StreamingResponse:

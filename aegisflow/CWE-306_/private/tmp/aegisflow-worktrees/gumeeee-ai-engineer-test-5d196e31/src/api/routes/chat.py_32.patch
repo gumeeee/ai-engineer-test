@@ -1,0 +1,2 @@
+@router.post("", response_model=ChatResponse, dependencies=[Depends(verify_token)])
+async def chat(request: ChatRequest, graph=Depends(get_graph)) -> ChatResponse:
