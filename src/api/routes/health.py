@@ -8,7 +8,8 @@ router = APIRouter(tags=["health"])
 logger = get_logger(__name__)
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health", response_model=HealthResponse, dependencies=[Depends(verify_token)])
+async def health() -> HealthResponse:
 async def health() -> HealthResponse:
     """Health check endpoint verifying Redis and vector store status."""
     redis_status = _check_redis()
